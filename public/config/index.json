@@ -1,0 +1,4 @@
+{
+  "VUE_APP_BASE_API": "http://182.92.230.1:9051/",
+  "VUE_APP_AUTH_BASE_API": "http://182.92.230.1:9051/"
+}

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="renderer" content="webkit" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <!-- <link rel="icon" href="<%= BASE_URL %>favicon.ico" /> -->
+    <title><%= webpackConfig.name %></title>
+
+    <style>
+      .ol-overlaycontainer-stopevent {
+        display: none;
+      }
+      html,
+      body,
+      #map #app {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+        padding: 0px;
+        /*隐藏滚动条，当IE下溢出，仍然可以滚动*/
+        /* -ms-overflow-style: none;  打开后ie下表格无法滚动 */
+        /*火狐下隐藏滚动条*/
+        overflow: -moz-scrollbars-none;
+      }
+
+      .chromeframe {
+        margin: 0.2em 0;
+        background: #ccc;
+        color: #000;
+        padding: 0.2em 0;
+      }
+
+      :not(.el-table__body-wrapper)::-webkit-scrollbar {
+        display: none;
+      }
+
+      #loader-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 999999;
+        background: #001731;
+      }
+
+      .loading {
+        position: absolute;
+        width: 80px;
+        height: 40px;
+        margin: auto;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+
+      .loading span {
+        display: inline-block;
+        width: 8px;
+        height: 100%;
+        border-radius: 4px;
+        background: lightgreen;
+        animation: load 1s ease infinite;
+        -moz-animation: load 1s ease infinite;
+        -o-animation: load 1s ease infinite;
+        -ms-animation: load 1s ease infinite;
+        -webkit-animation: load 1s ease infinite;
+      }
+
+      @-webkit-keyframes load {
+        0%,
+        100% {
+          height: 40px;
+          background: lightgreen;
+        }
+        50% {
+          height: 70px;
+          margin: -15px 0;
+          background: lightblue;
+        }
+      }
+
+      @keyframes load {
+        0%,
+        100% {
+          height: 40px;
+          background: lightgreen;
+        }
+        50% {
+          height: 70px;
+          margin: -15px 0;
+          background: lightblue;
+        }
+      }
+
+      .loading span:nth-child(2) {
+        animation-delay: 0.2s;
+        -webkit-animation-delay: 0.2s;
+        -moz-animation-delay: 0.2s;
+        -o-animation-delay: 0.2s;
+        -ms-animation-delay: 0.2s;
+      }
+
+      .loading span:nth-child(3) {
+        animation-delay: 0.4s;
+        -webkit-animation-delay: 0.4s;
+        -moz-animation-delay: 0.4s;
+        -o-animation-delay: 0.4s;
+        -ms-animation-delay: 0.4s;
+      }
+
+      .loading span:nth-child(4) {
+        animation-delay: 0.6s;
+        -webkit-animation-delay: 0.6s;
+        -moz-animation-delay: 0.6s;
+        -o-animation-delay: 0.6s;
+        -ms-animation-delay: 0.6s;
+      }
+
+      .loading span:nth-child(5) {
+        animation-delay: 0.8s;
+        -webkit-animation-delay: 0.8s;
+        -moz-animation-delay: 0.8s;
+        -o-animation-delay: 0.8s;
+        -ms-animation-delay: 0.8s;
+      }
+
+      @media print {
+        .Noprint {
+          display: none;
+        }
+        .PageNext {
+          page-break-after: always;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div style="height: 100%" id="map" class="map-container map"></div>
+    <script src="./codebase/ol.js"></script>
+    <script src="./codebase/axios.min.js"></script>
+    <script>
+      (function () {
+        function getUrlVars(url) {
+          var hash;
+          var myJson = {};
+          var hashes = url.slice(url.indexOf("?") + 1).split("&");
+          for (var i = 0; i < hashes.length; i++) {
+            hash = hashes[i].split("=");
+            myJson[hash[0]] = decodeURIComponent(hash[1]);
+          }
+          return myJson;
+        }
+        var geoJson = {
+          type: "Feature",
+          properties: {
+            extent: [-54.75, -297.05, 31.3, -126.55],
+            workspace: "jaya1514474021482524674"
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [0, 3.16],
+                [-0.426, 3.077],
+                [-0.8, 2.925],
+                [-0.852, 2.674],
+                [-0.852, 2.301],
+                [-0.852, 1.844],
+                [-0.852, 1.246],
+                [-0.852, 0.245],
+                [-0.852, -0.426],
+                [-0.852, -0.891],
+                [-0.8, -1.148],
+                [-0.5, -1.28],
+                [-0.5, -1.28],
+                [0.5, -1.28],
+                [0.8, -1.148],
+                [0.852, -0.891],
+                [0.852, -0.426],
+                [0.852, 0.245],
+                [0.852, 1.246],
+                [0.852, 1.844],
+                [0.852, 2.301],
+                [0.852, 2.674],
+                [0.8, 2.925],
+                [0.426, 3.077]
+              ]
+            ]
+          }
+        };
+        //基于openlayers3
+        function init(linepoint) {
+          //加载geoserver已发布地图
+          var tiled = [
+            new ol.layer.Tile({
+              source: new ol.source.TileWMS({
+                url: "http://182.92.230.1:8080/geoserver/jaya1514474021482524674/wms",
+                params: {
+                  REQUEST: "GetMap",
+                  FORMAT: "image/png",
+                  VERSION: "1.1.1",
+                  SERVICE: "WMS",
+                  STYLES: "",
+                  LAYERS: "jaya1514474021482524674:jaya1514474021482524674",
+                  exceptions: "application/vnd.ogc.se_inimage",
+                  tiled: true
+                }
+              })
+            })
+          ];
+
+          //定义地图对象
+          map = new ol.Map({
+            layers: tiled,
+            target: "map",
+            view: new ol.View({
+              zoom: 20,
+              minZoom: 20,
+              maxZoom: 25,
+              projection: "EPSG:3857"
+            })
+          });
+          // 侧边滑块
+          // map.addControl(new ol.control.ZoomSlider());
+          // 地图自适应位置
+          map
+            .getView()
+            .fit(
+              [
+                -78.29007223175742, -361.178199895841, 37.131862829919235,
+                -132.12381713778493
+              ],
+              map.getSize()
+            );
+
+          //创建一个线
+          var Line = new ol.Feature({
+            geometry: new ol.geom.LineString(linepoint)
+          });
+
+          //设置线的样式
+          Line.setStyle(
+            new ol.style.Style({
+              //填充色
+              fill: new ol.style.Fill({
+                color: "rgba(255, 255, 255, 0.2)"
+              }),
+              //边线颜色
+              stroke: new ol.style.Stroke({
+                color: "#ffcc33",
+                width: 5
+              }),
+              //形状
+              image: new ol.style.Circle({
+                radius: 7,
+                fill: new ol.style.Fill({
+                  color: "#ffcc33"
+                })
+              })
+            })
+          );
+
+          //实例化一个矢量图层Vector作为绘制层
+          var source = new ol.source.Vector({
+            features: [Line]
+          });
+          var vector = new ol.layer.Vector({
+            source: source
+          });
+          //map.addLayer(vector);
+
+          //获取直线的坐标
+          var route = new ol.geom.LineString(linepoint);
+          var routeCoords = route.getCoordinates();
+          var routeLength = routeCoords.length;
+
+          var routeFeature = new ol.Feature({
+            type: "route",
+            geometry: route
+          });
+          var geoMarker = new ol.Feature({
+            type: "geoMarker",
+            geometry: new ol.geom.Point(routeCoords[0])
+          });
+          var startMarker = new ol.Feature({
+            type: "icon",
+            geometry: new ol.geom.Point(routeCoords[0])
+          });
+          var endMarker = new ol.Feature({
+            type: "icon",
+            geometry: new ol.geom.Point(routeCoords[routeLength - 1])
+          });
+
+          var styles = {
+            route: new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                width: 5,
+                color: [237, 212, 0, 0.8]
+              })
+            }),
+            geoMarker: new ol.style.Style({
+              image: new ol.style.Circle({
+                radius: 2,
+                snapToPixel: false,
+                fill: new ol.style.Fill({ color: "black" }),
+                stroke: new ol.style.Stroke({
+                  color: "white",
+                  width: 2
+                })
+              })
+            })
+          };
+
+          var vectorLayer = new ol.layer.Vector({
+            source: new ol.source.Vector({
+              features: [routeFeature, geoMarker, startMarker, endMarker]
+            }),
+            style: function (feature) {
+              //如果动画是激活的就隐藏geoMarker
+              if (feature.get("type") === "geoMarker") {
+                return null;
+              }
+              return styles[feature.get("type")];
+            }
+          });
+
+          //map.addLayer(vectorLayer);
+
+          var index = 0;
+          now = new Date().getTime();
+          var carvector;
+          var moveFeature = function (event) {
+            var vectorContext = event.vectorContext;
+            var frameState = event.frameState;
+            var elapsedTime = frameState.time - now;
+            //console.log(elapsedTime);
+            var index = Math.round(elapsedTime / 50);
+
+            if (index < routeLength) {
+              var currentPoint = new ol.geom.Point(routeCoords[index]);
+              var feature = new ol.Feature(currentPoint);
+              var tempJson = JSON.parse(JSON.stringify(geoJson));
+              for (
+                var i = 0;
+                i < tempJson.geometry.coordinates[0].length;
+                i++
+              ) {
+                var carx = geoJson.geometry.coordinates[0][i][1];
+                var cary = geoJson.geometry.coordinates[0][i][0];
+
+                var nowPoint = GetDPoint(
+                  { X: parseFloat(carx), Y: parseFloat(cary) },
+                  {
+                    X: parseFloat(linepoint[index][0]),
+                    Y: parseFloat(linepoint[index][1])
+                  },
+                  parseFloat(linepoint[index][3])
+                );
+
+                tempJson.geometry.coordinates[0][i][0] = nowPoint.X;
+                tempJson.geometry.coordinates[0][i][1] = nowPoint.Y;
+              }
+              if (carvector != null) {
+                map.removeLayer(carvector);
+              }
+              var carsource = new ol.source.Vector({
+                features: new ol.format.GeoJSON({
+                  featureProjection: "EPSG:3857"
+                }).readFeatures(tempJson)
+              });
+
+              carvector = new ol.layer.Vector({
+                source: carsource
+              });
+
+              map.addLayer(carvector);
+              map
+                .getView()
+                .setCenter([linepoint[index][0], linepoint[index][1]]);
+              vectorContext.drawFeature(feature, styles.geoMarker);
+              map.render();
+            } else {
+              vectorContext.drawFeature(endMarker, styles.geoMarker);
+              return;
+            }
+          };
+
+          map.on("postcompose", moveFeature);
+
+          //var extent = vectorLayer.getSource().getExtent();//合适比例缩放居中
+          //map.getView().fit(extent, map.getSize());
+        }
+
+        function GetDPoint(p1, p2, jd) {
+          //console.log(p1)
+          jd = jd - 90;
+          if (jd >= 360) jd -= 360;
+          jd = (jd * Math.PI) / 180;
+          var sin = Math.sin(jd);
+          var cos = Math.cos(jd);
+          var X = p1.X * cos + p1.Y * sin;
+          var Y = p1.Y * cos - p1.X * sin;
+          X += p2.X;
+          Y += p2.Y;
+          return { X: X, Y: Y };
+        }
+        var linepoint = [];
+        var params = getUrlVars(location.href);
+        axios.get("/config/index.json").then((json) => {
+          axios({
+            method: "post",
+            url:
+              (params.env == "development"
+                ? params.VUE_APP_BASE_API
+                : json.data.VUE_APP_BASE_API) +
+              "api/bg/operation/train-record/gps/track",
+            data: {
+              id: params.id
+            },
+            headers: { Authorization: params.token }
+          }).then((res) => {
+            if (res.data.code == 200) {
+              var arr = res.data.data.gj;
+              for (var i = 0; i < arr.length; i++) {
+                var temp = [];
+                temp.push(arr[i].d, arr[i].b, arr[i].t, arr[i].j);
+                linepoint.push(temp);
+              }
+              init(linepoint);
+            } else {
+              alert(res.data.msg);
+            }
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>
